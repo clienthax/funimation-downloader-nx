@@ -107,6 +107,7 @@ let fnTitle = '',
 	fnEpNum = '',
 	fnSuffix = '',
 	fnOutput = '',
+	fnOutput_bak = '',
 	tsDlPath = false,
 	stDlPath = false;
 
@@ -252,6 +253,9 @@ async function getShow(){
 		ep.number = ep.number !== '' ? ep.mediaCategory+ep.number : ep.mediaCategory+'#'+ep.id;
 	}
 	fnEpNum = argv.ep ? ( parseInt(argv.ep, 10) < 10 ? '0' + argv.ep : argv.ep ) : ep.number;
+	
+	fnEpNum += '.5';
+	
 	fnSuffix = argv.suffix.replace('SIZEp',argv.q);
 	fnOutput = shlp.cleanupFilename('['+argv.a+'] ' + fnTitle + ' - ' + fnEpNum + ' ['+ fnSuffix +']');
 	// end
@@ -349,6 +353,12 @@ async function downloadStreams(){
 		}
 	}
 	else{
+		// check filename for ts muxer
+		fnOutput_bak = fnOutput;
+		if(fnOutput_bak.indexOf('.')>-1){
+			fnOutput = fnOutput.replace(/\./g,'_');
+			fs.renameSync(fnOutput_bak+'.ts', fnOutput+'.ts');
+		}
 		// Get stream data
 		let metaData = require('child_process').execSync('"'+path.normalize(bin.tsmuxer)+'" "'+fnOutput+'.ts"');
 		let metaDataRe = /Track ID:\s*(\d+)[\s\S]*?Stream ID:\s*([\S]*)[\s\S]*?Frame rate:\s*([\S]*)[\s\S]*?Track ID:\s*(\d+)[\s\S]*?Stream ID:\s*([\S]*)[\s\S]*?Stream delay:\s*([\S]*)/;
@@ -357,10 +367,18 @@ async function downloadStreams(){
 		let ts2meta  = 'MUXOPT --no-pcr-on-video-pid --new-audio-pes --demux --vbr  --vbv-len=500\n';
 			ts2meta += metaArgs[2]+', "'+path.normalize(workDir.content+'/'+fnOutput+'.ts')+'", insertSEI, contSPS, track='+metaArgs[1]+'\n';
 			ts2meta += metaArgs[5]+', "'+path.normalize(workDir.content+'/'+fnOutput+'.ts')+'", timeshift='+metaArgs[6]+'ms, track='+metaArgs[4];
-		fs.writeFileSync(fnOutput+'.meta',ts2meta);
-		shlp.exec('tsmuxer','"'+path.normalize(bin.tsmuxer)+'"','"'+fnOutput+'.meta" "'+path.normalize(workDir.content)+'"',true);
-		fs.renameSync(fnOutput+'.track_'+metaArgs[1]+'.264',fnOutput+'.264');
-		fs.renameSync(fnOutput+'.track_'+metaArgs[4]+'.aac',fnOutput+'.aac');
+		fs.writeFileSync(fnOutput_bak+'.meta',ts2meta);
+		shlp.exec('tsmuxer','"'+path.normalize(bin.tsmuxer)+'"','"'+fnOutput_bak+'.meta" "'+path.normalize(workDir.content)+'"',true);
+		if(fnOutput_bak.indexOf('.')>-1){
+			fs.renameSync(fnOutput+'.track_'+metaArgs[1]+'.264',fnOutput_bak+'.264');
+			fs.renameSync(fnOutput+'.track_'+metaArgs[4]+'.aac',fnOutput_bak+'.aac');
+			fs.renameSync(fnOutput+'.ts', fnOutput_bak+'.ts');
+			fnOutput = fnOutput_bak;
+		}
+		else{
+			fs.renameSync(fnOutput+'.track_'+metaArgs[1]+'.264',fnOutput+'.264');
+			fs.renameSync(fnOutput+'.track_'+metaArgs[4]+'.aac',fnOutput+'.aac');
+		}
 		// mux to mp4
 		let mp4mux  = '-add "'+fnOutput+'.264#video:name=['+argv.a+']" ';
 			mp4mux += '-add "'+fnOutput+'.aac#audio:lang='+(argv.sub?'jpn':'eng')+':name=" ';
