@@ -253,9 +253,6 @@ async function getShow(){
 		ep.number = ep.number !== '' ? ep.mediaCategory+ep.number : ep.mediaCategory+'#'+ep.id;
 	}
 	fnEpNum = argv.ep ? ( parseInt(argv.ep, 10) < 10 ? '0' + argv.ep : argv.ep ) : ep.number;
-	
-	fnEpNum += '.5';
-	
 	fnSuffix = argv.suffix.replace('SIZEp',argv.q);
 	fnOutput = shlp.cleanupFilename('['+argv.a+'] ' + fnTitle + ' - ' + fnEpNum + ' ['+ fnSuffix +']');
 	// end
