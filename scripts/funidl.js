@@ -13,7 +13,8 @@ const fs = require('fs');
 // modules extra
 const shlp = require('sei-helper');
 const yargs = require('yargs');
-let request = require('request');
+const request = require('request');
+const agent = require('socks5-https-client/lib/Agent');
 
 // folders
 const configDir  = path.join(__dirname,'/config/');
@@ -78,6 +79,8 @@ let argv = yargs
 	
 	// proxy
 	.describe('proxy','Set ipv4 http(s) proxy')
+	.describe('sockshost','Set socks5 host')
+	.describe('socksport','Set socks5 port')
 	
 	// help
 	.describe('h','Show this help')
@@ -424,6 +427,16 @@ function getData(url,qs,proxy,useToken,auth){
 		options.proxy = 'http://'+argv.proxy;
 		options.timeout = 10000;
 	}
+
+	if(proxy && argv.sockshost && argv.socksport){
+		options.agentClass = agent;
+		var agentOptions = {
+			socksHost: argv.sockshost,
+			socksPort: argv.socksport
+		};
+		options.agentOptions = agentOptions;
+	}
+
 	// do request
 	return new Promise((resolve, reject) => {
 		request(options, (err, resp, body) => {
