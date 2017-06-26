@@ -20,6 +20,9 @@ const configDir  = path.join(__dirname,'/config/');
 const configBase = path.join(__dirname,'/base/');
 let bin, workDir = {};
 
+//vtt2srt
+var vtt = require("vtt-to-srt");
+
 // check folders
 if(fs.existsSync(configBase)){
 	bin             = require(path.join(configBase,'/config.bin.js'));
@@ -338,16 +341,28 @@ async function downloadStreams(){
 	// select muxer
 	if(argv.mkv){
 		// mux to mkv
+		executeFunction = function() {
+			shlp.exec('mkvmerge','"'+path.normalize(bin.mkvmerge)+'"',mkvmux,true);
+			if(!argv.nocleanup){
+				fs.renameSync(fnOutput+'.ts', workDir.trash+'/'+fnOutput+'.ts');
+			}
+		}
+
 		let mkvmux  = '-o "'+fnOutput+'.mkv" --disable-track-statistics-tags --engage no_variable_data ';
 			mkvmux += '--track-name "0:['+argv.a+']" --language "1:'+(argv.sub?'jpn':'eng')+'" --video-tracks 0 --audio-tracks 1 --no-subtitles --no-attachments ';
 			mkvmux += '"'+fnOutput+'.ts" ';
 			if(argv.mks&&stDlPath){
-				mkvmux += '--language 0:eng "'+fnOutput+'.vtt" ';
+				//Mkvmux doesn't support vtt files
+				ready = false;
+				var readd = fs.createReadStream(fnOutput + '.vtt');
+				readd.pipe(vtt()).pipe(fs.createWriteStream(fnOutput + '.srt'));
+				readd.on('end',function(){
+					mkvmux += '--language 0:eng "'+fnOutput+'.srt" ';
+					executeFunction();
+				});
+			} else {
+				executeFunction();
 			}
-		shlp.exec('mkvmerge','"'+path.normalize(bin.mkvmerge)+'"',mkvmux,true);
-		if(!argv.nocleanup){
-			fs.renameSync(fnOutput+'.ts', workDir.trash+'/'+fnOutput+'.ts');
-		}
 	}
 	else{
 		// check filename for ts muxer
